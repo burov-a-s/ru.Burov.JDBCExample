@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class EmployeeDAOImpl implements EmployeeDAO {
+    private final String JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
     private final String URL = "jdbc:mysql://127.0.0.1:3306/my_db";
     private final String USERNAME = "bestuser";
     private final String PASSWORD = "bestuser";
@@ -15,14 +16,16 @@ public class EmployeeDAOImpl implements EmployeeDAO {
     public List<Employee> getAllEmployees() {
         List<Employee> employees = new ArrayList<>();
         try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
+            Class.forName(JDBC_DRIVER);
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
 
-        try (Connection connection = DriverManager.getConnection(URL, USERNAME, PASSWORD)) {
-            Statement statement = connection.createStatement();
+        try (Connection connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+             Statement statement = connection.createStatement()) {
+
             ResultSet resultSet = statement.executeQuery("SELECT * FROM employees");
+
             while (resultSet.next()) {
                 Employee employee = new Employee();
                 employee.setId(resultSet.getInt("id"));
@@ -44,48 +47,87 @@ public class EmployeeDAOImpl implements EmployeeDAO {
         String surname = employee.getSurname();
         String department = employee.getDepartment();
         int salary = employee.getSalary();
-
-        String sqlQuery = String.format("INSERT INTO employees (id, name, surname, department, salary) VALUES (%d, '%s', '%s', '%s', %d)", id, name, surname, department, salary);
+        boolean employeeExists = false;
 
         try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
+            Class.forName(JDBC_DRIVER);
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
 
-        try (Connection connection = DriverManager.getConnection(URL, USERNAME, PASSWORD)) {
-            Statement statement = connection.createStatement();
-            statement.executeUpdate(sqlQuery);
+        List<Employee> employees = getAllEmployees();
 
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+        for (Employee e : employees) {
+            if (e.getId() == id) {
+                employeeExists = true;
+            }
+        }
+
+        if (employeeExists) {
+            try(Connection connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+                PreparedStatement statement = connection.prepareStatement("UPDATE employees SET name = ?, surname = ?, department = ?, salary = ? WHERE id = ?")) {
+                statement.setString(1, name);
+                statement.setString(2, surname);
+                statement.setString(3, department);
+                statement.setInt(4, salary);
+                statement.setInt(5, id);
+                statement.executeUpdate();
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
+            }
+        } else {
+            try (Connection connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+                 PreparedStatement statement = connection.prepareStatement("INSERT INTO employees (name, surname, department, salary) VALUES (?, ?, ?, ?)")) {
+                statement.setString(1, name);
+                statement.setString(2, surname);
+                statement.setString(3, department);
+                statement.setInt(4, salary);
+                statement.executeUpdate();
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
+            }
         }
     }
 
     public Employee getEmployeeById(int id) {
-        List<Employee> employeeList = this.getAllEmployees();
-        for (Employee employee : employeeList) {
-            if (employee.getId() == id) {
-                return employee;
-            }
-        }
-        System.out.println("employee with id= " + id + " not found");
-        return null;
-    }
-
-    public void deleteEmployee(int id) {
-        String sqlQuery = String.format("DELETE FROM employees WHERE id = %d", id);
+        Employee employee = null;
 
         try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
+            Class.forName(JDBC_DRIVER);
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
 
-        try (Connection connection = DriverManager.getConnection(URL, USERNAME, PASSWORD)) {
-            Statement statement = connection.createStatement();
-            statement.executeUpdate(sqlQuery);
+        try (Connection connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+             PreparedStatement statement = connection.prepareStatement("SELECT * FROM employees WHERE id = ?")) {
+            statement.setInt(1, id);
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                employee = new Employee();
+                employee.setId(resultSet.getInt("id"));
+                employee.setName(resultSet.getString("name"));
+                employee.setSurname(resultSet.getString("surname"));
+                employee.setDepartment(resultSet.getString("department"));
+                employee.setSalary(resultSet.getInt("salary"));
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
 
+        return employee;
+    }
+
+    public void deleteEmployee(int id) {
+        try {
+            Class.forName(JDBC_DRIVER);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        try (Connection connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+             PreparedStatement statement = connection.prepareStatement("DELETE FROM employees WHERE id = ?")) {
+            statement.setInt(1, id);
+            statement.executeUpdate();
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
