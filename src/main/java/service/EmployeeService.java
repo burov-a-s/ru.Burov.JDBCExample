@@ -1,10 +1,10 @@
-package dao;
+package service;
 
 import entity.Employee;
 
 import java.util.List;
 
-public interface EmployeeDAO {
+public interface EmployeeService {
     public List<Employee> getAllEmployees();
 
     public void saveEmployee(Employee employee);
